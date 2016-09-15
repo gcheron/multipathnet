@@ -25,6 +25,8 @@ cmd:option('-sf', .5, 'final scale')
 cmd:option('-ss', .5, 'scale step')
 cmd:option('-dm', false, 'use DeepMask version of SharpMask')
 cmd:option('-img','./deepmask/data/testImage.jpg' ,'path/to/test/image')
+cmd:option('-imgrespath','./res.jpg' ,'path/to/result/image')
+cmd:option('-boxrespath','./resbox.jpg' ,'path/to/result/box')
 cmd:option('-thr', 0.5, 'multipathnet score threshold [0,1]')
 cmd:option('-maxsize', 600, 'resize image dimension')
 cmd:option('-sharpmask_path', 'data/models/sharpmask.t7', 'path to sharpmask')
@@ -59,8 +61,12 @@ local infer = Infer{
 }
 
 local img = image.load(config.img)
+local original_scale = config.maxsize/math.max(img:size(2),img:size(3))
+print('original scale:' .. original_scale)
+print('from size: ' .. img:size(2),img:size(3))
 img = image.scale(img, config.maxsize)
 local h,w = img:size(2),img:size(3)
+print('to size: ' .. img:size(2),img:size(3))
 
 infer:forward(img)
 
@@ -93,6 +99,9 @@ local dataset = paths.dofile'./DataSetJSON.lua':create'coco_val2014'
 
 local res = img:clone()
 coco.MaskApi.drawMasks(res, masks, 10)
+
+local person_prob = -1 ;
+
 for i,v in ipairs(final_idx:totable()) do
    local class = maxes[v][1]-1
    local x1,y1,x2,y2 = table.unpack(bboxes[v]:totable())
@@ -100,7 +109,17 @@ for i,v in ipairs(final_idx:totable()) do
    local name = dataset.dataset.categories[class]
    print(prob[v][1], class, name)
    image.drawText(res, name, x1, y2, {bg={255,255,255}, inplace=true})
+   if name == "person" then
+      local cbox = bboxes[v]/original_scale
+      local cprob = prob[v][1]
+      print(cbox)
+      if cprob > person_prob then
+         print('more confident person detected:  ' .. person_prob .. ' --> ' .. cprob)
+         person_prob = cprob
+         torch.save(config.boxrespath,cbox) -- save the person box (eventually erase it if prob > previous detected person)
+      end
+   end
 end
-image.save(string.format('./res.jpg',config.model),res)
+image.save(config.imgrespath,res)
 
 print('| done')
