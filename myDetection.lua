@@ -179,19 +179,22 @@ for im_i = config.start_id,#imagelist do
    h,w=imgOri:size(2),imgOri:size(3)
 
    -- save ground truth
-   local gtbox = torch.load(gtboxlist[im_i])
-   resbox.GT = gtbox:double() ;
+   local gtmask,res 
+   if draw then res = imgOri end
 
-   local x1g,y1g,x2g,y2g = table.unpack(gtbox:totable())
-   local wbg,hbg = x2g-x1g,y2g-y1g
-   local gtmask = coco.MaskApi.frBbox(torch.Tensor{x1g,y1g,wbg,hbg},h,w) ;
+   if config.gtboxpath ~= '' then
+      local gtbox = torch.load(gtboxlist[im_i])
+      resbox.GT = gtbox:double() ;
+
+      local x1g,y1g,x2g,y2g = table.unpack(gtbox:totable())
+      local wbg,hbg = x2g-x1g,y2g-y1g
+      gtmask = coco.MaskApi.frBbox(torch.Tensor{x1g,y1g,wbg,hbg},h,w) ;
  
-   local res 
-   if draw then
-      res = imgOri
-      coco.MaskApi.drawMasks(res, coco.MaskApi.decode(gtmask))
-      y2g = math.min(y2g, res:size(2)) - 10
-      myDrawText(res,x1g,y2g,'GT',imagereslist[im_i])
+      if draw then
+         coco.MaskApi.drawMasks(res, coco.MaskApi.decode(gtmask))
+         y2g = math.min(y2g, res:size(2)) - 10
+         myDrawText(res,x1g,y2g,'GT',imagereslist[im_i])
+      end
    end
 
    if selected_index[1] then -- if a human detection exists
@@ -202,7 +205,7 @@ for im_i = config.start_id,#imagelist do
       local x1,y1,x2,y2 = table.unpack(cbox:totable())
       local wb,hb = x2-x1,y2-y1
       local cmask = coco.MaskApi.frBbox(torch.Tensor{x1,y1,wb,hb},h,w) ;
-      resbox.score_iou = coco.MaskApi.iou(cmask,gtmask)[1][1] ;
+      if config.gtboxpath ~= '' then resbox.score_iou = coco.MaskApi.iou(cmask,gtmask)[1][1] ; end
 
       if draw then
          coco.MaskApi.drawMasks(res, coco.MaskApi.decode(cmask))
@@ -217,7 +220,7 @@ for im_i = config.start_id,#imagelist do
       x1,y1,x2,y2 = table.unpack(cbox:totable())
       wb,hb = x2-x1,y2-y1
       cmask = coco.MaskApi.frBbox(torch.Tensor{x1,y1,wb,hb},h,w) ;
-      resbox.area_iou = coco.MaskApi.iou(cmask,gtmask)[1][1] ;
+      if config.gtboxpath ~= '' then resbox.area_iou = coco.MaskApi.iou(cmask,gtmask)[1][1] ; end
  
       if draw then
          coco.MaskApi.drawMasks(res, coco.MaskApi.decode(cmask))
