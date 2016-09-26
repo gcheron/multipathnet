@@ -28,6 +28,7 @@ cmd:option('-img','./deepmask/data/testImage.jpg' ,'path/to/test/image')
 cmd:option('-imglist','' ,'path/to/test/image/list.txt')
 cmd:option('-imgrespath','./res.jpg' ,'path/to/result/image')
 cmd:option('-boxrespath','./resbox.jpg' ,'path/to/result/box')
+cmd:option('-resinfolders',false,'create foldername (found before imagename input) to save results')
 cmd:option('-gtboxpath','' ,'path/to/GT/box')
 cmd:option('-thr', 0.5, 'multipathnet score threshold [0,1]')
 cmd:option('-maxsize', 600, 'resize image dimension')
@@ -78,15 +79,21 @@ then
    imagereslist[1] = config.imgrespath
    boxreslist[1] = config.boxrespath
 else 
-   local file = io.open ('imglist.txt','r') 
+   local file = io.open (config.imglist,'r')
    local count = 1
    while true do
       local impath = file:read()
       if impath == nil then break end
       local imname = impath:gsub('.*/',''):gsub('%..*','')
+      local resfolder ='' ;
+      if config.resinfolders then
+         _,resfolder,_=impath:match('(.*/)(.*)(/[^/]*%..*)$') ;
+         paths.mkdir(('%s/%s'):format(config.imgrespath,resfolder)) ;
+         paths.mkdir(('%s/%s'):format(config.boxrespath,resfolder)) ;
+      end
       imagelist[count] = impath
-      imagereslist[count] = ('%s/%s.jpg'):format(config.imgrespath,imname)
-      boxreslist[count] = ('%s/%s.t7'):format(config.boxrespath,imname)
+      imagereslist[count] = ('%s/%s/%s.jpg'):format(config.imgrespath,resfolder,imname)
+      boxreslist[count] = ('%s/%s/%s.t7'):format(config.boxrespath,resfolder,imname)
       gtboxlist[count] = ('%s/%s.t7'):format(config.gtboxpath,imname)
       count = count + 1 
    end
@@ -210,7 +217,7 @@ for im_i = config.start_id,#imagelist do
       if draw then
          coco.MaskApi.drawMasks(res, coco.MaskApi.decode(cmask))
          y2 = math.min(y2, res:size(2)) - 10
-         myDrawText(res,x1,y2,('score %.2f'):format(resbox.score_iou),imagereslist[im_i])
+         if config.gtboxpath ~= '' then myDrawText(res,x1,y2,('score %.2f'):format(resbox.score_iou),imagereslist[im_i]) end
       end
 
       v=selected_index[2]
@@ -225,7 +232,7 @@ for im_i = config.start_id,#imagelist do
       if draw then
          coco.MaskApi.drawMasks(res, coco.MaskApi.decode(cmask))
          y2 = math.min(y2, res:size(2)) - 10
-         myDrawText(res,x1,y2,('area %.2f'):format(resbox.area_iou),imagereslist[im_i])
+         if config.gtboxpath ~= '' then myDrawText(res,x1,y2,('area %.2f'):format(resbox.area_iou),imagereslist[im_i]) end
       end
    else
       resbox.score_iou=0
