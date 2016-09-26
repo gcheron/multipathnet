@@ -2,8 +2,13 @@
 echo "" > /sequoia/data1/gcheron/code/torch/multipathnet/img_cmd.sh ; root=/sequoia/data2/gcheron/JHMDB/cnn_images ; saveroot=/sequoia/data2/gcheron/JHMDB/human_detections_res ; for i in *.jpg ; do isub=$(echo "$i" | sed -e "s/\.[^.]*$/\.t7/g") ; echo "th demo.lua -sharpmask_path "deepmask/pretrained/sharpmask/model.t7" -np 100 -img \"$root/full_image/$i\" -imgrespath \"$saveroot/full_image/$i\" -boxrespath \"$saveroot/boxes/$isub\" " >> /sequoia/data1/gcheron/code/torch/multipathnet/img_cmd.sh ; done
 
 # generate video command
-echo "" > video_cmd.sh ; index=0 ; for i in *.jpg ; do  index=$((index+1)) ; printf "mv \"%s\" img%07d.jpg \n" "$i" "$index" >> video_cmd.sh ; done ; echo "ffmpeg -framerate 1/0.025 -i img%07d.jpg -vcodec libx264 -threads 10 out.mp4" >> video_cmd.sh
+echo "" > video_cmd.sh ; index=0 ; for i in *.jpg ; do  index=$((index+1)) ; printf "mv \"%s\" img%07d.jpg \n" "$i" "$index" >> video_cmd.sh ; done ; echo "ffmpeg -framerate 1/0.05 -i img%07d.jpg -vcodec libx264 -threads 10 out.mp4" >> video_cmd.sh
+
+# detection command example using list
+th myDetection.lua -sharpmask_path deepmask/pretrained/sharpmask/model.t7 -np 100 -imglist "imglist.txt" -imgrespath "/sequoia/data2/gcheron/JHMDB/human_detections_res/full_image" -boxrespath "/sequoia/data2/gcheron/JHMDB/human_detections_res/boxes" -gtboxpath "/sequoia/data1/gcheron/JHMDB/puppet_mask/bboxes" -draw -start_id 2853;
 
 # generate frame list
 rm /sequoia/data1/gcheron/code/torch/multipathnet/imglist.txt ; root=/sequoia/data2/gcheron/JHMDB/cnn_images/full_image ; cd $root ; for i in *.jpg ; do echo "$root/$i" >> /sequoia/data1/gcheron/code/torch/multipathnet/imglist.txt ; done
 
+# UCF101 detection command
+th myDetection.lua -sharpmask_path deepmask/pretrained/sharpmask/model.t7 -np 100 -imglist "ucfimages_split1.txt" -boxrespath "/sequoia/data2/gcheron/UCF101/detection/human_detections_res/boxes" -start_id 1 -resinfolders
