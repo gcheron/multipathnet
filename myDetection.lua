@@ -37,6 +37,7 @@ cmd:option('-sharpmask_path', 'data/models/sharpmask.t7', 'path to sharpmask')
 cmd:option('-multipath_path', 'data/models/resnet18_integral_coco.t7', 'path to multipathnet')
 cmd:option('-draw', false,'draw boxes and save resulting image')
 cmd:option('-start_id', 1,'start image positions in the list')
+cmd:option('-not_person_only', false,'do not only save person detections')
 
 local config = cmd:parse(arg)
 
@@ -53,6 +54,8 @@ local detector = fbcoco.ImageDetect(multipathnet, model_utils.ImagenetTransforme
 
 local dataset = paths.dofile'./DataSetJSON.lua':create'coco_val2014' -- get detection classnames
 
+local person_class=2 ;
+assert(dataset.dataset.categories[person_class-1] == 'person') -- person is category 1
 ------------------- Prepare DeepMask --------------------
 
 local meanstd = {mean = { 0.485, 0.456, 0.406 }, std = { 0.229, 0.224, 0.225 }}
@@ -111,6 +114,7 @@ end
 
 local prev_time = 0 ;
 local time = torch.tic() ;
+local t_total_delay = 0
 for im_i = config.start_id,#imagelist do
    local compute = true ;
    if config.checkexisting then
@@ -143,6 +147,10 @@ for im_i = config.start_id,#imagelist do
    
       local detections = detector:detect(img:float(), bboxes:float())
       local prob, maxes = detections:max(2)
+      if not config.not_person_only then -- if we are interested in person detections only
+         prob:copy(detections:select(2,person_class)) -- copy the prob corresponding to person class
+         maxes:fill(person_class)
+      end
       --print(maxes)
    
       -- remove background detections
@@ -186,8 +194,11 @@ for im_i = config.start_id,#imagelist do
                end
              end
          end
-         -- save all detections above th
-         resbox.boxes_scores_classes=torch.cat(bboxes:double()/original_scale, torch.cat(prob:double(),maxes:double():add(-1), 2),2)
+         -- save all detections above th (after NMS)
+         allbboxes=bboxes:index(1,final_idx)
+         prob=prob:index(1,final_idx)
+         maxes=maxes:index(1,final_idx)
+         resbox.boxes_scores_classes=torch.cat(allbboxes:double()/original_scale, torch.cat(prob:double(),maxes:double():add(-1), 2),2)
        end
    ------------------- Save & Draw detections --------------------
       h,w=imgOri:size(2),imgOri:size(3)
@@ -247,9 +258,12 @@ for im_i = config.start_id,#imagelist do
       end
       torch.save(boxreslist[im_i],resbox)
       if draw then image.save(imagereslist[im_i],res) end
+   else
+      -- update timing info
+      t_total_delay=t_total_delay+1
    end
    local measured_time = torch.toc(time) ;
-   local estimated_time = (measured_time/(im_i-config.start_id+1))*(#imagelist-im_i) ; -- estimate remaining time
+   local estimated_time = (measured_time/(im_i-t_total_delay-config.start_id+1))*(#imagelist-im_i) ; -- estimate remaining time
    print(('%d out of %d images: %.2f s (remaining time: %.0f s)'):format(im_i,#imagelist,measured_time-prev_time,estimated_time))
    prev_time = measured_time ;
 end
