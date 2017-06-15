@@ -7,7 +7,8 @@ of patent rights can be found in the PATENTS file in the same directory.
 ------------------------------------------------------------------------------]]
 
 -- put your paths to VOC and COCO containing subfolders with images here
-local VOCdevkit = '/home/zagoruys/raid/datasets/VOCdevkit'
+-- local VOCdevkit = '/home/zagoruys/raid/datasets/VOCdevkit'
+local VOCdevkit = '/mnt/disk1/glustervolume/gcheron/torch/torch/PASCAL07/VOCdevkit'
 local coco_dir = '/home/zagoruys/raid/datasets/mscoco'
 
 return {
