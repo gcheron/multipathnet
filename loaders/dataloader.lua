@@ -38,6 +38,12 @@ for _,name in ipairs{'train2014','val2013'} do
    datasets['imagenet_' .. name] = file
 end
 
+-- Add DALY datasets
+for _,name in ipairs{'trainkeyframes', 'testkeyframes','trainkeyframes_flow','testkeyframes_flow'} do
+   local file = dataset_path .. '/daly_' .. name .. '.json'
+   datasets['daly_' .. name] = file
+end
+
 -- e.g. coco.DataLoader('train') or coco.DataLoader('pascal_train2007')
 local function DataLoader(dset)
    if torch.typename(dset) == 'dataLoader' then return dset end

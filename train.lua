@@ -100,6 +100,7 @@ torch.manualSeed(opt.manualSeed)
 ---------------------------------------------------------------------------------------
 assert(opt.images_per_batch % opt.train_nGPU == 0, "images_per_batch must be a multiple of train_nGPU")
 opt.num_classes = opt.dataset == 'pascal' and 21 or 81
+if opt.dataset == 'daly' then opt.num_classes = 11 end
 
 local model_data = paths.dofile('models/'..opt.model..'.lua')
 local model, transformer, info = table.unpack(model_data)
@@ -143,6 +144,7 @@ model_utils.testModel(model)
 local test_year = (opt.year == '2007,2012') and '2007' or opt.year
 local dataset_name = opt.dataset..'_'..opt.test_set..test_year
 local test_folder_name = opt.dataset == 'pascal' and ('VOC'..test_year) or 'coco'
+if opt.dataset == 'daly' then test_folder_name = 'daly' end
 local test_proposals_path = utils.makeProposalPath(opt.proposal_dir, test_folder_name, opt.proposals, opt.test_set)
 
 --------------------------------------------------------------------------
@@ -351,6 +353,9 @@ engine.hooks.onEnd = function(state)
    save(state.network, state.optimizer, 'final')
 
    opt.test_nsamples = 4952
+   --if opt.dataset == 'daly' then opt.test_nsamples = ds.dataset.data.annotations.bbox:size(1) end
+   -- replace by above instead of hardcoding
+   if opt.dataset == 'daly' then opt.test_nsamples = 4602 end
 
    local res = validate(state.network)
    log(state, {

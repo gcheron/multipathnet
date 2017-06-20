@@ -13,6 +13,7 @@ require 'fbcoco'
 function loadDataSet(opt)
    local dataset_name = opt.dataset..'_'..opt.train_set..opt.year
    local folder_name = opt.dataset == 'pascal' and ('VOC'..opt.year) or 'coco'
+   if opt.dataset == 'daly' then folder_name = 'daly' end
    local proposals_path = utils.makeProposalPath(opt.proposal_dir, folder_name, opt.proposals, opt.train_set, opt.imagenet_classes ~= '')
 
    local ds = paths.dofile'DataSetJSON.lua':create(dataset_name, proposals_path, opt.train_nsamples)

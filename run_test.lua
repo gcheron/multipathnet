@@ -20,7 +20,7 @@ opt = {
    transformer = 'RossTransformer',
    scale = 600,
    max_size = 1000,
-   test_nGPU = 4,
+   test_nGPU = 1,
    test_set = 'test',
    test_nsamples = -1, -- all samples
    test_data_offset = -1, -- ignore the first "offset" samples
@@ -47,6 +47,7 @@ print(opt)
 
 local dataset_name = opt.dataset..'_'..opt.test_set..opt.year
 local folder_name = opt.dataset == 'pascal' and ('VOC'..opt.year) or 'coco'
+if opt.dataset == 'daly' then folder_name = 'daly' end
 local proposals_path = utils.makeProposalPath(opt.proposal_dir, folder_name, opt.proposals, opt.test_set)
 
 print('dataset:',dataset_name)
