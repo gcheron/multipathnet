@@ -33,10 +33,8 @@ function testCoco.evaluate(dataset_name, res)
       annFile = 'instances_val2014.json'
    elseif dataset_name == 'pascal_test2007' then
       annFile = 'pascal_test2007.json'
-   elseif dataset_name == 'daly_testkeyframes' then
-      annFile = 'daly_testkeyframes.json'
-   elseif dataset_name == 'daly_testkeyframes_flow' then
-      annFile = 'daly_testkeyframes_flow.json'
+   elseif dataset_name:match'^daly_' then
+      annFile = dataset_name..'.json'
    end
    annFile = paths.concat(annotations_path, annFile)
 

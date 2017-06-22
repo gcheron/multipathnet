@@ -12,7 +12,9 @@ local VOCdevkit = '/mnt/disk1/glustervolume/gcheron/torch/torch/PASCAL07/VOCdevk
 local coco_dir = '/home/zagoruys/raid/datasets/mscoco'
 local daly_dir = '/sequoia/data2/gcheron/DALY'
 
-return {
+local dalynames={'daly_trainkeyframes','daly_testkeyframes'}
+for i=1,28 do dalynames[#dalynames+1]='daly_testtracks_set_'..i end
+local restab = {
    pascal_train2007 = paths.concat(VOCdevkit, 'VOC2007/JPEGImages'),
    pascal_val2007 = paths.concat(VOCdevkit, 'VOC2007/JPEGImages'),
    pascal_test2007 = paths.concat(VOCdevkit, 'VOC2007/JPEGImages'),
@@ -21,10 +23,9 @@ return {
    pascal_test2012 = paths.concat(VOCdevkit, 'VOC2012/JPEGImages'),
    coco_train2014 = paths.concat(coco_dir, 'train2014'),
    coco_val2014 = paths.concat(coco_dir, 'val2014'),
-   daly_train = paths.concat(daly_dir, 'images'),
-   daly_test = paths.concat(daly_dir, 'images'),
-   daly_trainkeyframes = paths.concat(daly_dir, 'images'),
-   daly_testkeyframes = paths.concat(daly_dir, 'images'),
-   daly_trainkeyframes_flow = paths.concat(daly_dir, 'OF_closest'),
-   daly_testkeyframes_flow = paths.concat(daly_dir, 'OF_closest'),
 }
+for _,v in ipairs(dalynames) do
+   restab[v] = paths.concat(daly_dir, 'images') ;
+   restab[v..'_flow'] = paths.concat(daly_dir, 'OF_closest')
+end
+return restab

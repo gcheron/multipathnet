@@ -39,9 +39,11 @@ for _,name in ipairs{'train2014','val2013'} do
 end
 
 -- Add DALY datasets
-for _,name in ipairs{'trainkeyframes', 'testkeyframes','trainkeyframes_flow','testkeyframes_flow'} do
-   local file = dataset_path .. '/daly_' .. name .. '.json'
-   datasets['daly_' .. name] = file
+local dalynames={'trainkeyframes', 'testkeyframes','trainkeyframes_flow','testkeyframes_flow'}
+for i=1,28 do dalynames[#dalynames+1]='testtracks_set_'..i end
+for _,name in ipairs(dalynames) do
+   datasets['daly_' .. name] =            dataset_path .. '/daly_' .. name .. '.json'
+   datasets['daly_' .. name .. '_flow'] = dataset_path .. '/daly_' .. name .. '_flow.json'
 end
 
 -- e.g. coco.DataLoader('train') or coco.DataLoader('pascal_train2007')
