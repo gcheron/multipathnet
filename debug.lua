@@ -24,7 +24,7 @@ local function switch_debug()
    end
 end
 
-function breakpoint(label)
+function breakpoint(label,debvariables)
    if debug_flag then
       print('')
       print('==============================')
@@ -33,6 +33,11 @@ function breakpoint(label)
       print('Type Ctrl+C (+ Enter) to switch off debug mode')
       print('==============================')
       print('')
+
+      -- put variables to watch in the global debtab
+      if not debtab then debtab={} end
+      if debvariables then for k,v in pairs(debvariables) do debtab[k]=v end end
+
       debug_repl()
    end
 end
