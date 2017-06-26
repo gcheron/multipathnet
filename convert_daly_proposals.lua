@@ -13,7 +13,7 @@ py.exec('import numpy as np')
 
 
 -- contrary to annotations (in x,y,w,h format)
--- proposal are in format: x1,y1,x2,y2
+-- proposal are in format: y1,x1,y2,x2
 
 -- example from:
 -- /sequoia/data1/gcheron/code/torch/multipathnet/data/proposals/VOC2007/selective_search/train.t7
@@ -28,6 +28,7 @@ resdir='/sequoia/data1/gcheron/code/torch/multipathnet/data/proposals/daly/keyfr
 annotdir='/sequoia/data1/gcheron/code/torch/multipathnet/data/annotations/'
 -- in Philippe's proposals: ( image_ID,x1,y1,x2,y2, score)  x1,y1,x2,y2 starting at 0
 
+local permute_tensor = torch.LongTensor{2,1,4,3}
 
 function write_prop_file(split)
    local data = {}
@@ -54,9 +55,9 @@ function write_prop_file(split)
       local proppath=sourcedir..vidname..'.mp4.npy'
       local cur_prop = py.eval('np.load(p)',{p=proppath})
       local idx = torch.linspace(1,cur_prop:size(1),cur_prop:size(1))[cur_prop:narrow(2,1,1):eq(imnum)]:long()
-      local sel_prop = cur_prop:index(1,idx):narrow(2,2,4):add(1) -- select x1,y1,x2,y2 and make it state at 1
-
-      data.boxes[i] = sel_prop:double()
+      local sel_prop = cur_prop:index(1,idx):narrow(2,2,4):add(1) -- select x1,y1,x2,x2 and make it state at 1
+      
+      data.boxes[i] = sel_prop:double():index(2,permute_tensor) -- y1,x1,y2,x2 put in correct input format
       data.images[i] = cur_im
    end
    torch.save(respath,data)

@@ -14,7 +14,7 @@ py.exec('import numpy as np')
 
 
 -- contrary to annotations (in x,y,w,h format)
--- proposal are in format: x1,y1,x2,y2
+-- proposal are in format: y1,x1,y2,x2
 
 -- example from:
 -- /sequoia/data1/gcheron/code/torch/multipathnet/data/proposals/VOC2007/selective_search/train.t7
@@ -31,7 +31,7 @@ tmp_annotations = json.decode(data)
 
 dofile('daly_res.lua') 
 
-
+local permute_tensor = torch.LongTensor{2,1,4,3}
 
 
 -- track format [ X1 Y1 X2 Y2 frameIds ]
@@ -94,8 +94,7 @@ function write_prop_file(split)
          local imboxes=track:narrow(2,1,4)
          for dd=1,track:size(1) do
             local cix=imidx[dd]
-            local cbb=imboxes:narrow(1,dd,1)
-   
+            local cbb=imboxes:narrow(1,dd,1):index(2,permute_tensor) -- y1,x1,y2,x2 put in correct input format
             local imname=('%s/image-%05d.jpg'):format(vidname,cix)
             local im_cor = set_imcorres[cix]
             if not im_cor then -- the video frame is not in the set yet
