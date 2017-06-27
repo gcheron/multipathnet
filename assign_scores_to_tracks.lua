@@ -30,9 +30,20 @@ function save_tracks(tracks)
 
       for c=1,nbclasses-1 do
          -- get combined score for the given class and save the class result
-         ctrack.lstm_pred=s_scores:narrow(1,c,1):clone():add(f_scores:narrow(1,c,1)):div(2)
+         ctrack.lstm_pred=s_scores:narrow(1,c,1):clone():add(f_scores:narrow(1,c,1):clone()):div(2)
          paths.mkdir(v.savename:format(c):match('.*/'))
          mattorch.save(v.savename:format(c),ctrack)
+
+         -- also do it for APP and FLOW only
+         ctrack.lstm_pred=s_scores:narrow(1,c,1)
+         local spath=v.savename:format(c):gsub('combined','APP')
+         paths.mkdir(spath:match('.*/'))
+         mattorch.save(spath,ctrack)
+
+         ctrack.lstm_pred=f_scores:narrow(1,c,1)
+         spath=v.savename:format(c):gsub('combined','OF')
+         paths.mkdir(spath:match('.*/'))
+         mattorch.save(spath,ctrack)
       end
    end
 end
@@ -95,6 +106,7 @@ function write_res_file()
             end
          end
       end
+      print(cur_vid_to_fill)
       save_tracks(cur_tracks_to_fill) -- save the last tracks
    end
 end

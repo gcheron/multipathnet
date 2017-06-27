@@ -1,5 +1,6 @@
 #!/bin/bash
 
+export PATH=/sequoia/data3/gcheron/anaconda2/bin:$PATH
 export PYTHONPATH=/sequoia/data1/gcheron/code/torch/coco/PythonAPI
 
 export proposals=keyframes
@@ -24,7 +25,7 @@ export test_nsamples=1000
 #export nEpochs=3
 #export nDonkeys=1
 
-export save_folder=/sequoia/data2/gcheron/mutlipathnet_results/logs/fastrcnn_daly_app_${RANDOM}${RANDOM}
+export save_folder=/sequoia/data2/gcheron/multipathnet_results/logs/fastrcnn_daly_app_${RANDOM}${RANDOM}
 mkdir -p $save_folder
 
 th train.lua | tee $save_folder/log.txt
