@@ -135,7 +135,17 @@ function Tester:testOne(i)
       tt2, timer2:time().real,
       nms_time, timer:time().real));
    end
-   return img_boxes, {output, bbox_pred}
+
+   local outtab
+   if opt.save_roipooling_fc7 then
+      assert(#all_output==1)
+      local roipooling=self.detec.model:get(2).output:float()
+      local fc7=self.detec.model:get(4):get(5).output:float()
+      outtab={output, bbox_pred,roipooling=roipooling,fc7=fc7}
+   else outtab={output, bbox_pred}
+   end
+
+   return img_boxes, outtab
 end
 
 function Tester:test()

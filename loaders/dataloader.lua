@@ -40,7 +40,8 @@ end
 
 -- Add DALY datasets
 local dalynames={'trainkeyframes', 'testkeyframes','trainkeyframes_flow','testkeyframes_flow'}
-for i=1,28 do dalynames[#dalynames+1]='testtracks_set_'..i end
+for i=1,280 do dalynames[#dalynames+1]='testtracks_set_'..i end
+for i=1,399 do dalynames[#dalynames+1]='traintracks_set_'..i end
 for _,name in ipairs(dalynames) do
    datasets['daly_' .. name] =            dataset_path .. '/daly_' .. name .. '.json'
    datasets['daly_' .. name .. '_flow'] = dataset_path .. '/daly_' .. name .. '_flow.json'

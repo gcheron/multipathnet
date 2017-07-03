@@ -30,6 +30,7 @@ opt = {
    test_save_res_prefix = '',
    test_save_res = '',
    test_save_raw = '',
+   save_roipooling_fc7 = false,
    test_num_iterative_loc = 1,
    disable_memory_efficient_forward = false,
    test_add_nosoftmax = false, -- for backwards compatibility with szagoruyko's experiments ONLY

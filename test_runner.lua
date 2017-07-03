@@ -87,6 +87,8 @@ function module:computeBBoxes()
    local aboxes_t = {}
    local raw_output = tds.hash()
    local raw_bbox_pred = tds.hash()
+   local raw_roipooling = tds.hash()
+   local raw_fc7 = tds.hash()
    local timer = torch.Timer()
    for i=1, ds:size() do
       self.threads:addjob(
@@ -98,6 +100,10 @@ function module:computeBBoxes()
          if opt.test_save_raw ~= '' then
             raw_output[i] = raw_res[1]:float()
             raw_bbox_pred[i] = raw_res[2]:float()
+            if opt.save_roipooling_fc7 then
+               raw_roipooling[i]=raw_res['roipooling']
+               raw_fc7[i]=raw_res['fc7']
+            end
          end
       end
       )
@@ -106,7 +112,7 @@ function module:computeBBoxes()
    print("Finished with images in " .. timer:time().real .. " s")
 
    if opt.test_save_raw ~= '' then
-      torch.save(opt.test_save_raw, {raw_output, raw_bbox_pred})
+      torch.save(opt.test_save_raw, {raw_output, raw_bbox_pred,raw_roipooling,raw_fc7})
       print('Saved raw bboxes at: ' , opt.test_save_raw)
    end
 

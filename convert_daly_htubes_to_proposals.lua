@@ -36,7 +36,10 @@ local permute_tensor = torch.LongTensor{2,1,4,3}
 
 -- track format [ X1 Y1 X2 Y2 frameIds ]
 sourcedir='/sequoia/data2/gcheron/lstm_time_detection_datasets/DALY_philippe_tracks/track_info_forLSTM'
-maximagesperset=40e3 -- create a new set when this number is reach (note that a same video will be put in the same set anyway)
+maximagesperset=1/0 -- 40e3 -- create a new set when this number is reached (note that a same video will be put in the same set anyway)
+maxdetectionsperset=60000 -- create a new set when this number of boxes is reached (note that a same track will be put in the same set anyway)
+
+assert(maxdetectionsperset == 1/0 or maximagesperset == 1/0, 'One of the 2 shouw be equal to Inf') 
 
 function saveset(set_boxes,set_images,set_trackid,set_id)
    assert(#set_boxes==#set_images and #set_boxes==#set_trackid)
@@ -44,6 +47,8 @@ function saveset(set_boxes,set_images,set_trackid,set_id)
    local annotation_name=annprefixpath..set_id..'.json'
    print('SAVING SET: '..set_name)
    print('Nb images: '..#set_images)
+   local cpt=0 ; for jj = 1,#set_boxes do cpt=cpt+set_boxes[jj]:size(1) ; end ;
+   print('Nb detections: '..cpt)
    torch.save(set_name,{boxes=set_boxes,images=set_images,trackid=set_trackid})
 
    -- create the dummy annotation file
@@ -61,13 +66,14 @@ function saveset(set_boxes,set_images,set_trackid,set_id)
 end
 
 function write_prop_file(split)
+   print('Create files for split: '..split)
    resprefixpath='/sequoia/data1/gcheron/code/torch/multipathnet/data/proposals/daly/tracks/'..split..'tracks_set_'
    annprefixpath='/sequoia/data1/gcheron/code/torch/multipathnet/data/annotations/daly_'..split..'tracks_set_'
    vidlist='/sequoia/data2/gcheron/DALY/OF_vidlist_'..split..'1.txt'
       
    vids=io.open(vidlist,'r')
    local nbvideos=0
-   local nbimages=0
+   local nbimages,nbdetections=0,0
    local set_id,set_boxes,set_images,set_trackid = 1,{},{},{}
    
    for vidname_exp in vids:lines() do
@@ -93,10 +99,10 @@ function write_prop_file(split)
          local imidx=track:select(2,5)
          local imboxes=track:narrow(2,1,4)
          for dd=1,track:size(1) do
-            local cix=imidx[dd]
+            local cix=imidx[dd] -- image idx
             local cbb=imboxes:narrow(1,dd,1):index(2,permute_tensor) -- y1,x1,y2,x2 put in correct input format
             local imname=('%s/image-%05d.jpg'):format(vidname,cix)
-            local im_cor = set_imcorres[cix]
+            local im_cor = set_imcorres[cix] -- this image corresponds to this idx in the current set
             if not im_cor then -- the video frame is not in the set yet
                im_cor = #set_images+1
                set_imcorres[cix] = im_cor
@@ -109,6 +115,14 @@ function write_prop_file(split)
                set_boxes[im_cor] = set_boxes[im_cor]:cat(cbb:double(),1)
                set_trackid[im_cor] = set_trackid[im_cor]:cat(torch.LongTensor{trackid},1)
             end
+            nbdetections=nbdetections+1
+         end
+         if nbdetections>maxdetectionsperset then -- create a new set
+            saveset(set_boxes,set_images,set_trackid,set_id)
+            set_id=set_id+1
+            set_boxes,set_images,set_trackid = {},{},{}
+            nbdetections,set_imcorres=0,{}
+            collectgarbage()
          end
       end
       tracks:close()
@@ -119,4 +133,5 @@ function write_prop_file(split)
    vids:close()
 end
 
+write_prop_file('train')
 write_prop_file('test')

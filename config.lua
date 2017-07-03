@@ -13,7 +13,8 @@ local coco_dir = '/home/zagoruys/raid/datasets/mscoco'
 local daly_dir = '/sequoia/data2/gcheron/DALY'
 
 local dalynames={'daly_trainkeyframes','daly_testkeyframes'}
-for i=1,28 do dalynames[#dalynames+1]='daly_testtracks_set_'..i end
+for i=1,280 do dalynames[#dalynames+1]='daly_testtracks_set_'..i end
+for i=1,399 do dalynames[#dalynames+1]='daly_traintracks_set_'..i end
 local restab = {
    pascal_train2007 = paths.concat(VOCdevkit, 'VOC2007/JPEGImages'),
    pascal_val2007 = paths.concat(VOCdevkit, 'VOC2007/JPEGImages'),

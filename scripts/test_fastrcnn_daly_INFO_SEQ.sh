@@ -23,11 +23,12 @@ log_folder=$testdir
 
 if [ ! -z "$track_setid" ];
 then
+   if [ -z "$track_split" ]; then track_split=test ; fi
    echo "RUN TEST ON TRACK ID: $track_setid"
-   test_save_raw=$test_save_res/result_set_$track_setid
+   test_save_raw=$test_save_res/${track_split}_result_set_$track_setid
    export test_save_res=""
    export proposals=tracks
-   export test_set=testtracks_set_$track_setid$INFOD
+   export test_set=${track_split}tracks_set_$track_setid$INFOD
    mkdir -p $test_save_raw
    log_folder=$test_save_raw
    export test_save_raw=$test_save_raw/raw.t7
