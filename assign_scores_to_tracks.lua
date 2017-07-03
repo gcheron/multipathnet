@@ -33,17 +33,20 @@ function save_tracks(tracks)
          ctrack.lstm_pred=s_scores:narrow(1,c,1):clone():add(f_scores:narrow(1,c,1):clone()):div(2)
          paths.mkdir(v.savename:format(c):match('.*/'))
          mattorch.save(v.savename:format(c),ctrack)
+         collectgarbage()
 
          -- also do it for APP and FLOW only
          ctrack.lstm_pred=s_scores:narrow(1,c,1)
          local spath=v.savename:format(c):gsub('combined','APP')
          paths.mkdir(spath:match('.*/'))
          mattorch.save(spath,ctrack)
+         collectgarbage()
 
          ctrack.lstm_pred=f_scores:narrow(1,c,1)
          spath=v.savename:format(c):gsub('combined','OF')
          paths.mkdir(spath:match('.*/'))
          mattorch.save(spath,ctrack)
+         collectgarbage()
       end
    end
 end
@@ -79,6 +82,7 @@ function write_res_file()
             print(cur_vid_to_fill)
             save_tracks(cur_tracks_to_fill)
             cur_tracks_to_fill = {}
+            collectgarbage()
          end
          cur_vid_to_fill,not_at_first = vidname,true
 
@@ -89,7 +93,7 @@ function write_res_file()
             if not cur_tracks_to_fill[idname] then -- if we have not loaded the track yet
                cur_tracks_to_fill[idname]={}
                local vidtrackname=(vidname..'/track%05d.mat'):format(trackid)
-               cur_tracks_to_fill[idname].track=mattorch.load(sourcedirmattracks..'/'..vidtrackname)
+               cur_tracks_to_fill[idname].track=mattorch.load(sourcedirmattracks..'/'..vidtrackname) ; collectgarbage()
                cur_tracks_to_fill[idname].cpt=0
                cur_tracks_to_fill[idname].savename=resdir..'_CLASS%d/predictions/MATLAB/'..vidtrackname
                local ctrack=cur_tracks_to_fill[idname].track
