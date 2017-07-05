@@ -19,10 +19,11 @@ do
    ii=$(echo $i | sed -e 's/^0*//g') ;
    if [[ $ii -le 280 ]] ;
    then
-      SH_generate_TITANGAIA_config.sh /sequoia/data1/gcheron/code/torch/multipathnet/scripts/jobs/s${i}_app_dalytracktest.sh.sh ;
+      SH_generate_TITANGAIA_config.sh /sequoia/data1/gcheron/code/torch/multipathnet/scripts/jobs/s${i}_app_dalytracktest.sh ;
       SH_generate_TITANGAIA_config.sh /sequoia/data1/gcheron/code/torch/multipathnet/scripts/jobs/s${i}_flow_dalytracktest.sh ;
    fi
    SH_generate_TITANGAIA_config.sh /sequoia/data1/gcheron/code/torch/multipathnet/scripts/jobs/s${i}_app_dalytracktrain.sh
    SH_generate_TITANGAIA_config.sh /sequoia/data1/gcheron/code/torch/multipathnet/scripts/jobs/s${i}_flow_dalytracktrain.sh
-   sleep 0.5 ;
+   sleep 1 ;
+   echo $i
 done

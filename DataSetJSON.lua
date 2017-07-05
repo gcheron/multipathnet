@@ -179,6 +179,7 @@ local function filterArea(boxes, scores, area)
       local wh = boxes:narrow(2,3,2):clone():add(-1, boxes:narrow(2,1,2))
       local s = wh:select(2,1):cmul(wh:select(2,2))
       local idx = s:gt(area):nonzero()
+      if idx:nDimension()==0 then return boxes, scores end -- avoid bug when all boxes have area 0
       idx = idx:view(idx:nElement())
       local new_boxes = boxes:index(1, idx)
       local new_scores = scores and scores:index(1, idx)
