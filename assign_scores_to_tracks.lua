@@ -1,5 +1,12 @@
-require 'mattorch'
+--require 'mattorch'
+local mtorch=require 'mattorch'
 require 'tds'
+
+local cmd = torch.CmdLine()
+cmd:text()
+cmd:text('Options:')
+cmd:option('-setnum',-1)
+opts = cmd:parse(arg or {})
 
 feature_saving = true -- either detection score or feature saving
 
@@ -16,18 +23,32 @@ scores_set_sources_flow='/sequoia/data2/gcheron/multipathnet_results/logs/fastrc
 prop_set_sourcesprefix='/sequoia/data1/gcheron/code/torch/multipathnet/data/proposals/daly/tracks/%stracks_set_%d.t7'
 
 function get_sets_res(sets_path,split)
-   local res = {}
+   local res,nbfound = {},0
    local res_sets=io.popen('ls '..sets_path:format(split)) ;
-   for tt in res_sets:lines() do res[#res+1]=tt end
-   return res
+   for tt in res_sets:lines() do res[tt]=1 ; nbfound=nbfound+1 end
+   -- reorder:
+   local res_sorted={}
+   local spattern=sets_path:format(split):gsub('set_%*/','set_%%d/')
+   for i=1,nbfound do
+      local csetname=spattern:format(i)
+      assert(res[csetname],'Missing SET')
+      res_sorted[i]=csetname
+   end
+   return res_sorted
 end
 
 function save_tracks(tracks,tracks_to_check)
    for idname,nbmissing in pairs(tracks_to_check) do
       print(('%s - Empty detection, check track: %d/%d detections are missing'):format(idname,nbmissing,tracks[idname].cpt))
+      print('-------------------------------------')
    end
 
+   local ntracks=0 ; for k,v in pairs(tracks) do ntracks=ntracks+1 ; end
+   local cptt=0
    for k,v in pairs(tracks) do
+      cptt=cptt+1
+      --io.write('track '..cptt..'/'..ntracks..'           \r'); io.flush()
+      print(k)
       local ctrack=v.track
       local ori_size,filled_size=ctrack.gt_iou:size(2),v.cpt
       assert(ori_size==filled_size,'The track was not filled correctly: orig/fill sizes:'..ori_size..' and '..filled_size)
@@ -39,6 +60,7 @@ function save_tracks(tracks,tracks_to_check)
       ctrack.track=ctrack.track:double()
       ctrack.gt_tracks=nil
       ctrack.selected_action_scores=nil
+      collectgarbage()
 
       if feature_saving then
          ctrack.gt_class_labels=nil
@@ -47,45 +69,58 @@ function save_tracks(tracks,tracks_to_check)
          ctrack.gt_length=nil
          ctrack.gt_iou=nil
          paths.mkdir(v.savename:match('.*/'))
-         mattorch.save(v.savename,ctrack)
+         collectgarbage()
+         mtorch.save(v.savename,ctrack)
+         ctrack=nil
          collectgarbage()
 
-         return
-      end
+      else
       for c=1,nbclasses-1 do
          -- get combined score for the given class and save the class result
          ctrack.lstm_pred=s_scores:narrow(1,c,1):clone():add(f_scores:narrow(1,c,1):clone()):div(2)
          paths.mkdir(v.savename:format(c):match('.*/'))
-         mattorch.save(v.savename:format(c),ctrack)
+         mtorch.save(v.savename:format(c),ctrack)
          collectgarbage()
 
          -- also do it for APP and FLOW only
          ctrack.lstm_pred=s_scores:narrow(1,c,1)
          local spath=v.savename:format(c):gsub('combined','APP')
          paths.mkdir(spath:match('.*/'))
-         mattorch.save(spath,ctrack)
+         mtorch.save(spath,ctrack)
          collectgarbage()
 
          ctrack.lstm_pred=f_scores:narrow(1,c,1)
          spath=v.savename:format(c):gsub('combined','OF')
          paths.mkdir(spath:match('.*/'))
-         mattorch.save(spath,ctrack)
+         mtorch.save(spath,ctrack)
          collectgarbage()
       end
+      end
    end
+   print('')
 end
 
-function write_res_file(split)
+function write_res_file(split,fromsetnum,tosetnum)
    
    local res_sets_app=get_sets_res(scores_set_sources_app,split)
    local res_sets_flow=get_sets_res(scores_set_sources_flow,split)
+   local fromsetnum = fromsetnum or 1
+
+   local tosetnum = tosetnum or #res_sets_app
+   if tosetnum>#res_sets_app then return end
+
    print(('APP/OF sets found: %d/%d'):format(#res_sets_app,#res_sets_flow))
    assert(#res_sets_app==#res_sets_flow)
 
-   for i_set=1,#res_sets_app do -- for each set
+   for i_set=fromsetnum,tosetnum do -- for each set
+      collectgarbage()
       -- load the set of detections
+      print('Load set '..i_set);
+      print(res_sets_app[i_set])
       local loadapp = torch.load(res_sets_app[i_set])
       local loadflow= torch.load(res_sets_flow[i_set])
+      print('Load set '..i_set..' LOADED!');
+      collectgarbage()
 
       -- get scores
       local res_app = loadapp[1]
@@ -119,7 +154,7 @@ function write_res_file(split)
          local vidname = cur_prop.images[i_det_set]:match('(.*)/')
 
          if not_at_first and cur_vid_to_fill~=vidname then -- if the video has changed, save the prev tracks
-            print(split,cur_vid_to_fill)
+            print(split,cur_vid_to_fill,'set '..i_set)
             save_tracks(cur_tracks_to_fill,tracks_to_check)
             cur_tracks_to_fill = {}
             tracks_to_check = {}
@@ -127,29 +162,65 @@ function write_res_file(split)
          end
          cur_vid_to_fill,not_at_first = vidname,true
 
-         -- it can have more track id than detection results due to proposal with 0 area,
-         -- check they indeed have 0 area
+         -- it can have more track id than detection results due to proposal with area <= 2,
+         -- check they indeed have <=2 area
          if not (alltrackids:size(1) == res_app[i_det_set]:size(1)) then
 
             local boxes=cur_prop.boxes[i_det_set]
-            -- compute as in FRCNN code: area is no exactly 0 (+1 is missing)
+
+            -- compute as in FRCNN code: area is no exactly <=2 (+1 is missing)
             local hw = boxes:narrow(2,3,2):clone():add(-1, boxes:narrow(2,1,2))
-            local missing_idx=torch.range(1,alltrackids:size(1))[hw:eq(0):sum(2):gt(0)]:long()
-            -- we found the right number of 0 area tracks
+            local s = hw:select(2,1):cmul(hw:select(2,2))
+            local idx = s:le(2) -- area is <= 2
+            local missing_idx=torch.range(1,alltrackids:size(1))[idx]:long()
+            --local missing_idx=torch.range(1,alltrackids:size(1))[hw:eq(0):sum(2):gt(0)]:long()
+
             assert(missing_idx:size(1)==alltrackids:size(1)-res_app[i_det_set]:size(1))
+            if missing_idx:nDimension()==0 or not (missing_idx:size(1)==alltrackids:size(1)-res_app[i_det_set]:size(1)) then
+               assert(false)
+               -- we have not found the right number of 0 area tracks
+               -- so it should have a small area somewhere, recompute missing_ix with a th:
+               local cth=0.4
+               for jj=1,6 do -- slowly increase the th to find the right missing number
+                  cth=cth+0.1
+                  missing_idx=torch.range(1,alltrackids:size(1))[hw:lt(cth):sum(2):gt(0)]:long()
+                  if missing_idx:nDimension()>0 and (missing_idx:size(1)>=alltrackids:size(1)-res_app[i_det_set]:size(1)) then break end
+               end
+
+               -- check if we now have the correct number of 0 area
+               if missing_idx:nDimension()==0 or not (missing_idx:size(1)==alltrackids:size(1)-res_app[i_det_set]:size(1)) then
+                  print('==============================================')
+                  print('CHECK at: i_set '..i_set,'i_det_set '..i_det_set)
+                  print('Prediction sizes:')
+                  print(
+                     res_app[i_det_set]:size(),res_flow[i_det_set]:size(),
+                     feat_app[i_det_set]:size(),feat_flow[i_det_set]:size())
+                  print('Pred:')
+                  print(res_app[i_det_set])
+                  print('Boxes and their sizes:')
+                  print(boxes,hw)
+                  print('missing_idx',missing_idx)
+   
+                  --dofile('debug.lua') ; breakpoint('',{alltrackids,boxes,hw,missing_idx,res_app[i_det_set]})
+                  assert(false,'we have not found the right number of 0 area tracks')
+               end
+            end
 
             -- add dummy numbers to detections
             local tensInsert = function(X,pos)
                assert(X)
                local xSize=X:size(1)
                local dummyInfo = X:narrow(1,1,1):clone():zero()
+               dummyInfo[1][dummyInfo:size(2)]=1
                if pos==1 then -- insert at the first positions
-                  X=dummyInfo:cat(X,1)
+                  X=dummyInfo:cat(X,1):clone()
                elseif pos==xSize+1 then -- append at the end
-                  X=X:cat(dummyInfo,1)
+                  X=X:cat(dummyInfo,1):clone()
                else -- insert in the middle
-                  X=torch.cat(X:narrow(1,1,pos-1),dummyInfo,1):cat(X:narrow(1,pos,xSize-pos+1),1)
+                  X=torch.cat(X:narrow(1,1,pos-1),dummyInfo,1):cat(X:narrow(1,pos,xSize-pos+1),1):clone()
                end
+               dummyInfo = nil
+               collectgarbage()
                return X
             end
             for i_miss=1,missing_idx:size(1) do
@@ -178,7 +249,7 @@ function write_res_file(split)
             if not cur_tracks_to_fill[idname] then -- if we have not loaded the track yet
                cur_tracks_to_fill[idname]={}
                local vidtrackname=(vidname..'/track%05d.mat'):format(trackid)
-               cur_tracks_to_fill[idname].track=mattorch.load(sourcedirmattracks..'/'..vidtrackname) ; collectgarbage()
+               cur_tracks_to_fill[idname].track=mtorch.load(sourcedirmattracks..'/'..vidtrackname) ; collectgarbage()
                cur_tracks_to_fill[idname].cpt=0
                if feature_saving then cur_tracks_to_fill[idname].savename=resdir..'/'..vidtrackname
                else cur_tracks_to_fill[idname].savename=resdir..'_CLASS%d/predictions/MATLAB/'..vidtrackname end
@@ -219,10 +290,15 @@ function write_res_file(split)
             end
          end
       end
-      print(split,cur_vid_to_fill)
+      print(split,cur_vid_to_fill,'set '..i_set)
       save_tracks(cur_tracks_to_fill,tracks_to_check) -- save the last tracks
    end
 end
 
-write_res_file('test')
-if feature_saving then write_res_file('train') end
+local from_i,to_i
+if opts.setnum > 0 then -- avoid memory leak bug from mattorch
+   from_i,to_i=opts.setnum,opts.setnum
+end
+if feature_saving then write_res_file('train',from_i,to_i) end
+write_res_file('test',from_i,to_i)
+print("ALL TRACKS SUCCESSFULLY ASSIGNED")

@@ -158,6 +158,7 @@ function ImageDetect:detect(im, boxes, min_images, recompute_features)
 
    local inputs = {torch.FloatTensor(),torch.FloatTensor()}
    local im_scales = getImages(self,inputs[1],im)
+   -- boxes are not changed from the prop file up to here (except the xy order)
    inputs[2] = project_im_rois(boxes,im_scales)
    if min_images then
       assert(inputs[1]:size(1) == 1)
