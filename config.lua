@@ -15,6 +15,15 @@ local daly_dir = '/sequoia/data2/gcheron/DALY'
 local dalynames={'daly_trainkeyframes','daly_testkeyframes'}
 for i=1,280 do dalynames[#dalynames+1]='daly_testtracks_set_'..i end
 for i=1,399 do dalynames[#dalynames+1]='daly_traintracks_set_'..i end
+
+-- load DALY sub VID sets
+local vid_sets=io.popen('ls /sequoia/data1/gcheron/code/torch/multipathnet/data/annotations/daly_*tracks_set_*_VID_*_flow*') ;
+for i in vid_sets:lines() do
+   dalynames[#dalynames+1]=i:match('.*/([^/]*)_flow%.json') ;
+end
+vid_sets:close()
+
+
 local restab = {
    pascal_train2007 = paths.concat(VOCdevkit, 'VOC2007/JPEGImages'),
    pascal_val2007 = paths.concat(VOCdevkit, 'VOC2007/JPEGImages'),

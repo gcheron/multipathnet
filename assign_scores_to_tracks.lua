@@ -6,21 +6,27 @@ local cmd = torch.CmdLine()
 cmd:text()
 cmd:text('Options:')
 cmd:option('-setnum',-1)
+cmd:option('-fromSubVID',false,'we do not use the regular sets but the smaller one containing 1 video maximum (usefull when there is out of memory failure')
+cmd:option('-endfile','raw.t7')
 opts = cmd:parse(arg or {})
 
 feature_saving = true -- either detection score or feature saving
 
 sourcedirmattracks='/sequoia/data2/gcheron/lstm_time_detection_datasets/DALY_philippe_tracks/track_info_forLSTM'
+
+
 if feature_saving then
-   resdir='/sequoia/data2/gcheron/lstm_time_detection_datasets/DALY_philippe_tracks/mat_combined_features_tracks_FRCNNREPRO'
-   featid=4 -- fc7
-   --featid=3 -- roi pooling
+   --resdir='/sequoia/data2/gcheron/lstm_time_detection_datasets/DALY_philippe_tracks/mat_combined_features_tracks_FRCNNREPRO'
+   resdir='/sequoia/data2/gcheron/lstm_time_detection_datasets/DALY_philippe_tracks/mat_combined_features_tracks_FRCNNREPRO_ROI'
+   --featid=4 -- fc7
+   featid=3 -- roi pooling
 else
    resdir='/sequoia/data2/gcheron/lstm_time_detection_datasets/DALY_philippe_tracks/models/FRCNN_combined_action_scores'
 end
-scores_set_sources_app='/sequoia/data2/gcheron/multipathnet_results/logs/fastrcnn_daly_app_FINAL/%s_result_set_*/raw.t7'
-scores_set_sources_flow='/sequoia/data2/gcheron/multipathnet_results/logs/fastrcnn_daly_flow_FINAL/%s_result_set_*/raw.t7'
-prop_set_sourcesprefix='/sequoia/data1/gcheron/code/torch/multipathnet/data/proposals/daly/tracks/%stracks_set_%d.t7'
+local endfile=opts.endfile
+scores_set_sources_app='/sequoia/data2/gcheron/multipathnet_results/logs/fastrcnn_daly_app_FINAL/%s_result_set_*/'..endfile
+scores_set_sources_flow='/sequoia/data2/gcheron/multipathnet_results/logs/fastrcnn_daly_flow_FINAL/%s_result_set_*/'..endfile
+prop_set_sourcesprefix='/sequoia/data1/gcheron/code/torch/multipathnet/data/proposals/daly/tracks/%stracks_set_%s.t7'
 
 function get_sets_res(sets_path,split)
    local res,nbfound = {},0
@@ -28,6 +34,14 @@ function get_sets_res(sets_path,split)
    for tt in res_sets:lines() do res[tt]=1 ; nbfound=nbfound+1 end
    -- reorder:
    local res_sorted={}
+   if opts.fromSubVID then
+      local cpt=0
+      for k,_ in pairs(res) do
+         cpt=cpt+1 ; res_sorted[cpt]=k
+      end
+      table.sort(res_sorted)
+      return res_sorted
+   end
    local spattern=sets_path:format(split):gsub('set_%*/','set_%%d/')
    for i=1,nbfound do
       local csetname=spattern:format(i)
@@ -125,8 +139,17 @@ function write_res_file(split,fromsetnum,tosetnum)
       -- get scores
       local res_app = loadapp[1]
       local res_flow=loadflow[1]
-      local set_number = tonumber(res_sets_app[i_set]:match('set_[0-9]*/'):sub(5,-2))
-      assert(set_number==tonumber(res_sets_flow[i_set]:match('set_[0-9]*/'):sub(5,-2)))
+      local reg
+
+      if opts.fromSubVID then
+         reg='set_.*/'
+      else reg='set_[0-9]*/'
+      end
+
+      local set_number = res_sets_app[i_set]:match(reg):sub(5,-2)
+      assert(set_number==res_sets_flow[i_set]:match(reg):sub(5,-2))
+
+      if not opts.fromSubVID then set_number=tonumber(set_number) end
 
       local feat_app,feat_flow
       if feature_saving then
@@ -141,6 +164,7 @@ function write_res_file(split,fromsetnum,tosetnum)
       local nbdets = #res_app
 
       -- load corresponding proposals
+      print('Load proposals '..(prop_set_sourcesprefix):format(split,set_number))
       local cur_prop = torch.load((prop_set_sourcesprefix):format(split,set_number))
       assert(#cur_prop.trackid==nbdets)
 

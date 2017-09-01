@@ -42,6 +42,14 @@ end
 local dalynames={'trainkeyframes', 'testkeyframes','trainkeyframes_flow','testkeyframes_flow'}
 for i=1,280 do dalynames[#dalynames+1]='testtracks_set_'..i end
 for i=1,399 do dalynames[#dalynames+1]='traintracks_set_'..i end
+
+-- load DALY sub VID sets
+local vid_sets=io.popen('ls /sequoia/data1/gcheron/code/torch/multipathnet/data/annotations/daly_*tracks_set_*_VID_*_flow*') ;
+for i in vid_sets:lines() do
+   dalynames[#dalynames+1]=i:match('.*/daly_([^/]*)_flow%.json') ;
+end
+vid_sets:close()
+
 for _,name in ipairs(dalynames) do
    datasets['daly_' .. name] =            dataset_path .. '/daly_' .. name .. '.json'
    datasets['daly_' .. name .. '_flow'] = dataset_path .. '/daly_' .. name .. '_flow.json'
