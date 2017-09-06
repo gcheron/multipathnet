@@ -7,7 +7,11 @@ cmd:text()
 cmd:text('Options:')
 cmd:option('-setnum',-1)
 cmd:option('-fromSubVID',false,'we do not use the regular sets but the smaller one containing 1 video maximum (usefull when there is out of memory failure')
+cmd:option('-saveIn2Pieces',false)
 cmd:option('-endfile','raw.t7')
+cmd:option('-setVidPattern','')
+cmd:option('-vidname','')
+
 opts = cmd:parse(arg or {})
 
 feature_saving = true -- either detection score or feature saving
@@ -24,9 +28,40 @@ else
    resdir='/sequoia/data2/gcheron/lstm_time_detection_datasets/DALY_philippe_tracks/models/FRCNN_combined_action_scores'
 end
 local endfile=opts.endfile
-scores_set_sources_app='/sequoia/data2/gcheron/multipathnet_results/logs/fastrcnn_daly_app_FINAL/%s_result_set_*/'..endfile
-scores_set_sources_flow='/sequoia/data2/gcheron/multipathnet_results/logs/fastrcnn_daly_flow_FINAL/%s_result_set_*/'..endfile
+local setVidPattern=opts.setVidPattern
+scores_set_sources_app='/sequoia/data2/gcheron/multipathnet_results/logs/fastrcnn_daly_app_FINAL/%s_result_set_*'..setVidPattern..'/'..endfile
+scores_set_sources_flow='/sequoia/data2/gcheron/multipathnet_results/logs/fastrcnn_daly_flow_FINAL/%s_result_set_*'..setVidPattern..'/'..endfile
 prop_set_sourcesprefix='/sequoia/data1/gcheron/code/torch/multipathnet/data/proposals/daly/tracks/%stracks_set_%s.t7'
+
+function saveIn2Pieces(savename,ctrack)
+   -- break the track in pieces (for large track files)
+   local tlength=ctrack.track:size(2)
+   local maxfeatsize=8000
+   local pieceNum=math.ceil(tlength/maxfeatsize)
+   local subpiecInfo=torch.DoubleTensor{pieceNum,tlength} ;
+   local fields={'track','feat_flow','feat_spatial','flow_scores','spatial_scores'}
+   print('Split file normally saved at:')
+   print(savename)
+   print(ctrack)
+   print('Into '..pieceNum..' pieces:')
+   for jj=1,pieceNum do
+      local subctrack={}
+      subctrack.subpiecInfo=subpiecInfo
+      local tstr='_subpiece'..jj..'.mat'
+      local subsavename=savename:gsub('%.mat$',tstr)
+      local from=1+(jj-1)*maxfeatsize
+      local to=math.min(jj*maxfeatsize,tlength)
+      for _,v in pairs(fields) do
+         local dim=ctrack[v]:nDimension()
+         subctrack[v]=ctrack[v]:narrow(dim,from,to-from+1):clone()
+      end
+      print('At:')
+      print(subsavename)
+      print(subctrack)
+      mtorch.save(subsavename,subctrack)
+      collectgarbage()
+   end
+end
 
 function get_sets_res(sets_path,split)
    local res,nbfound = {},0
@@ -84,7 +119,8 @@ function save_tracks(tracks,tracks_to_check)
          ctrack.gt_iou=nil
          paths.mkdir(v.savename:match('.*/'))
          collectgarbage()
-         mtorch.save(v.savename,ctrack)
+         if opts.saveIn2Pieces then saveIn2Pieces(v.savename,ctrack)
+         else mtorch.save(v.savename,ctrack) end
          ctrack=nil
          collectgarbage()
 
@@ -118,6 +154,9 @@ function write_res_file(split,fromsetnum,tosetnum)
    
    local res_sets_app=get_sets_res(scores_set_sources_app,split)
    local res_sets_flow=get_sets_res(scores_set_sources_flow,split)
+
+   if opts.setVidPattern~="" then print(res_sets_flow) end
+
    local fromsetnum = fromsetnum or 1
 
    local tosetnum = tosetnum or #res_sets_app
@@ -176,6 +215,8 @@ function write_res_file(split,fromsetnum,tosetnum)
          local alltrackids = cur_prop.trackid[i_det_set]
 
          local vidname = cur_prop.images[i_det_set]:match('(.*)/')
+
+         if opts.vidname=="" or vidname==opts.vidname then
 
          if not_at_first and cur_vid_to_fill~=vidname then -- if the video has changed, save the prev tracks
             print(split,cur_vid_to_fill,'set '..i_set)
@@ -312,6 +353,7 @@ function write_res_file(split,fromsetnum,tosetnum)
                   sav_position:copy(cur_feat)
                end
             end
+         end
          end
       end
       print(split,cur_vid_to_fill,'set '..i_set)
